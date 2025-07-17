@@ -1,9 +1,16 @@
+
+"use client";
+
+import { useState, useEffect, useMemo } from "react";
 import {
   Activity,
   Briefcase,
   CheckCircle,
   FileText,
   User,
+  Play,
+  Square,
+  Zap,
 } from "lucide-react";
 import {
   Card,
@@ -24,6 +31,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
 
 const recentApplications = [
   {
@@ -49,6 +60,73 @@ const recentApplications = [
 ];
 
 export default function DashboardPage() {
+  const [isPremium, setIsPremium] = useState(false);
+  const [numApplications, setNumApplications] = useState(10);
+  const [isApplying, setIsApplying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [currentApp, setCurrentApp] = useState(0);
+  const [statusMessage, setStatusMessage] = useState("");
+  const { toast } = useToast();
+
+  const maxApps = isPremium ? 100 : 10;
+
+  const cost = useMemo(() => {
+    if (!isPremium || numApplications <= 10) return 0;
+    return (numApplications - 10) * 0.1;
+  }, [isPremium, numApplications]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isApplying && currentApp < numApplications) {
+      interval = setInterval(() => {
+        setCurrentApp((prev) => prev + 1);
+      }, 1000);
+    } else if (isApplying && currentApp >= numApplications) {
+      setIsApplying(false);
+      setStatusMessage(`Finished applying to ${numApplications} jobs!`);
+      toast({ title: "Success!", description: "Auto-applying complete." });
+    }
+    return () => clearInterval(interval);
+  }, [isApplying, currentApp, numApplications, toast]);
+
+  useEffect(() => {
+    if (isApplying) {
+      setProgress((currentApp / numApplications) * 100);
+      setStatusMessage(`Applying to job ${currentApp + 1} of ${numApplications}...`);
+    }
+  }, [currentApp, isApplying, numApplications]);
+
+
+  const handleStart = () => {
+    if (numApplications > 0 && numApplications <= maxApps) {
+      setIsApplying(true);
+      setCurrentApp(0);
+      setProgress(0);
+      setStatusMessage("Starting application process...");
+    } else {
+      toast({
+        title: "Invalid Number",
+        description: `Please enter a number between 1 and ${maxApps}.`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleStop = () => {
+    setIsApplying(false);
+    setStatusMessage(`Process stopped. ${currentApp} applications sent.`);
+    toast({ title: "Process Stopped", description: "You stopped the auto-apply process." });
+  };
+  
+  const handleNumChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value, 10);
+    if (!isNaN(value)) {
+        setNumApplications(value);
+    } else if (e.target.value === "") {
+        setNumApplications(0);
+    }
+  }
+
   return (
     <div className="grid gap-6">
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -98,13 +176,74 @@ export default function DashboardPage() {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Premium</div>
+             <div className="flex items-center space-x-2">
+                <Label htmlFor="premium-switch">Free</Label>
+                <Switch
+                    id="premium-switch"
+                    checked={isPremium}
+                    onCheckedChange={setIsPremium}
+                    aria-label="Toggle between Free and Premium plan"
+                />
+                <Label htmlFor="premium-switch" className="text-primary font-bold">Premium</Label>
+            </div>
             <p className="text-xs text-muted-foreground">
-              Next billing on July 30th
+              {isPremium ? "Next billing on July 30th" : "Upgrade to unlock more features."}
             </p>
           </CardContent>
         </Card>
       </div>
+
+       <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="text-primary" /> Auto-Apply for Jobs
+          </CardTitle>
+          <CardDescription>
+            Let AI handle the applications. Select how many jobs you want to apply for.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="num-applications">Number of Applications</Label>
+              <Input
+                id="num-applications"
+                type="number"
+                value={numApplications}
+                onChange={handleNumChange}
+                max={maxApps}
+                min="1"
+                disabled={isApplying}
+              />
+              <p className="text-xs text-muted-foreground">
+                {isPremium
+                  ? `First 10 are free. Additional apps are $0.10 each.`
+                  : `You can apply for up to ${maxApps} jobs on the free plan.`}
+              </p>
+            </div>
+            <div className="space-y-2 self-end">
+              {isApplying ? (
+                <Button onClick={handleStop} variant="destructive" className="w-full">
+                  <Square className="mr-2" /> Stop Applying
+                </Button>
+              ) : (
+                <Button onClick={handleStart} className="w-full">
+                  <Play className="mr-2" /> Start Applying
+                </Button>
+              )}
+               {cost > 0 && <p className="text-sm text-center font-medium">Estimated Cost: ${cost.toFixed(2)}</p>}
+            </div>
+          </div>
+          {isApplying && (
+             <div className="space-y-2 pt-4">
+                <Progress value={progress} className="h-2"/>
+                <p className="text-sm text-center text-muted-foreground">{statusMessage}</p>
+            </div>
+          )}
+          {!isApplying && statusMessage && <p className="text-sm text-center text-muted-foreground pt-4">{statusMessage}</p>}
+        </CardContent>
+      </Card>
+
 
       <Card>
         <CardHeader>
