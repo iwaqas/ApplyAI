@@ -1,1 +1,6 @@
-// Flows will be imported for their side effects in this file.
+import { config } from 'dotenv';
+config();
+
+import '@/ai/flows/draft-cv-cover-letter.ts';
+import '@/ai/flows/profile-import.ts';
+import '@/ai/flows/missing-info-request.ts';
