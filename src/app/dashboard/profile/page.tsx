@@ -52,7 +52,7 @@ export default function ProfilePage() {
   useEffect(() => {
     // Only fetch if firebase is configured
     if (!isFirebaseConfigured) {
-      console.error("Firebase config is not set. Please check your .env.local file.");
+      console.log("Firebase config is not set. Please check your .env.local file.");
       setIsLoading(false);
       return;
     }
