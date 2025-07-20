@@ -71,10 +71,7 @@ export default function ProfilePage() {
       setIsLoading(false);
       return;
     }
-    
-    // Only fetch if we are in the initial loading state
-    if (!isLoading) return;
-
+    setIsLoading(true);
     try {
       const profileDocRef = doc(db, "profiles", USER_ID);
       const docSnap = await getDoc(profileDocRef);
@@ -102,7 +99,7 @@ export default function ProfilePage() {
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading, toast]);
+  }, [toast]);
 
 
   useEffect(() => {
