@@ -52,6 +52,7 @@ export default function ProfilePage() {
   useEffect(() => {
     // Only fetch if firebase is configured
     if (!isFirebaseConfigured) {
+      console.error("Firebase config is not set. Please check your .env.local file.");
       setIsLoading(false);
       return;
     }
@@ -160,7 +161,7 @@ export default function ProfilePage() {
                </div>
             ) : (
               <Textarea
-                placeholder={isFirebaseConfigured ? "Paste your resume, CV, experiences, awards, skills, etc." : "Firebase not configured. Please check console."}
+                placeholder={isFirebaseConfigured ? "Paste your resume, CV, experiences, awards, skills, etc." : "Firebase not configured. Check the developer console for more info."}
                 className="min-h-[400px] text-sm"
                 value={profileData}
                 onChange={(e) => setProfileData(e.target.value)}

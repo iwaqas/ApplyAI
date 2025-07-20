@@ -24,7 +24,8 @@ function checkFirebaseConfig() {
     !firebaseConfig.messagingSenderId ||
     !firebaseConfig.appId
   ) {
-    console.error("Firebase config is not set. Please check your .env.local file.");
+    // We will log the error inside the component that uses Firebase
+    // to avoid the Next.js error overlay.
     return false;
   }
   return true;
