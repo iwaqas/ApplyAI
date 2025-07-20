@@ -43,7 +43,7 @@ const profileDocRef = isFirebaseConfigured ? doc(db, "profiles", USER_ID) : null
 
 export default function ProfilePage() {
   const [profileData, setProfileData] = useState("");
-  const [linkedinImport, setLinkedinImport] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -53,7 +53,6 @@ export default function ProfilePage() {
   useEffect(() => {
     // Only fetch if firebase is configured
     if (!isFirebaseConfigured) {
-      console.log("Firebase config is not set. Please check your .env.local file.");
       setIsLoading(false);
       return;
     }
@@ -87,7 +86,7 @@ export default function ProfilePage() {
     if (!isFirebaseConfigured || !profileDocRef) {
       toast({
         title: "Configuration Error",
-        description: "Firebase is not configured. Please check your .env.local file.",
+        description: "Firebase is not configured. Please set it up to save data.",
         variant: "destructive",
       });
       return;
@@ -113,10 +112,10 @@ export default function ProfilePage() {
 
 
   const handleImport = async () => {
-    if (!linkedinImport.trim()) {
+    if (!linkedinUrl.trim()) {
       toast({
         title: "Error",
-        description: "Please paste your LinkedIn profile data first.",
+        description: "Please paste your LinkedIn profile URL first.",
         variant: "destructive",
       });
       return;
@@ -124,7 +123,7 @@ export default function ProfilePage() {
     setIsImporting(true);
     try {
       const result = await importLinkedInProfile({
-        linkedinProfile: linkedinImport,
+        linkedinProfileUrl: linkedinUrl,
       });
       setProfileData(result.rephrasedProfile);
       toast({
@@ -134,10 +133,10 @@ export default function ProfilePage() {
       setIsImportDialogOpen(false); // Close the dialog on success
     } catch (error) {
       console.error(error);
+      const errorMessage = error instanceof Error ? error.message : "There was an error importing your profile. Please try again.";
       toast({
         title: "Import Failed",
-        description:
-          "There was an error importing your profile. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -201,22 +200,21 @@ export default function ProfilePage() {
                 <DialogHeader>
                   <DialogTitle>Import from LinkedIn</DialogTitle>
                   <DialogDescription>
-                    Paste your LinkedIn profile data below. Our AI will rephrase
+                    Paste your LinkedIn profile URL below. Our AI will scrape it and rephrase
                     it into a professional brief.
                   </DialogDescription>
                 </DialogHeader>
-                <Textarea
-                  placeholder="Paste your data here..."
-                  className="min-h-[200px]"
-                  value={linkedinImport}
-                  onChange={(e) => setLinkedinImport(e.target.value)}
+                <Input
+                  placeholder="https://linkedin.com/in/your-profile"
+                  value={linkedinUrl}
+                  onChange={(e) => setLinkedinUrl(e.target.value)}
                 />
                 <DialogFooter>
                   <Button onClick={handleImport} disabled={isImporting}>
                     {isImporting && (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     )}
-                    Rephrase with AI
+                    Import and Rephrase
                   </Button>
                 </DialogFooter>
               </DialogContent>
