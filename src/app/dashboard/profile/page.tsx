@@ -33,7 +33,7 @@ import {
 import { importLinkedInProfile } from "@/ai/flows/profile-import";
 import { useToast } from "@/hooks/use-toast";
 import { db, storage, isFirebaseConfigured } from "@/lib/firebase";
-import { doc, getDoc, setDoc, type DocumentData, type DocumentReference } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import {
   ref,
   uploadBytesResumable,
@@ -45,15 +45,6 @@ import {
 import { Progress } from "@/components/ui/progress";
 
 const USER_ID = "default-user";
-
-let profileDocRef: DocumentReference<DocumentData>;
-let documentsRef: StorageReference;
-
-if (isFirebaseConfigured) {
-  profileDocRef = doc(db, "profiles", USER_ID);
-  documentsRef = ref(storage, `users/${USER_ID}/documents`);
-}
-
 
 interface UploadedFile {
   name: string;
@@ -84,6 +75,10 @@ export default function ProfilePage() {
     }
 
     const fetchProfileAndFiles = async () => {
+      // Define refs inside the effect to prevent re-renders
+      const profileDocRef = doc(db, "profiles", USER_ID);
+      const documentsRef = ref(storage, `users/${USER_ID}/documents`);
+      
       try {
         // Fetch profile
         const docSnap = await getDoc(profileDocRef);
@@ -117,7 +112,7 @@ export default function ProfilePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleSaveChanges = () => {
+  const handleSaveChanges = async () => {
     if (!isFirebaseConfigured) {
       toast({
         title: "Configuration Error",
@@ -128,24 +123,24 @@ export default function ProfilePage() {
     }
     setIsSaving(true);
     
-    setDoc(profileDocRef, { brief: profileData }, { merge: true })
-      .then(() => {
-        toast({
-          title: "Profile Saved",
-          description: "Your profile has been updated.",
-        });
-      })
-      .catch((error) => {
-        console.error("Error saving profile:", error);
-        toast({
-          title: "Save Failed",
-          description: "There was an error saving your profile.",
-          variant: "destructive",
-        });
-      })
-      .finally(() => {
-        setIsSaving(false);
+    const profileDocRef = doc(db, "profiles", USER_ID);
+    
+    try {
+      await setDoc(profileDocRef, { brief: profileData }, { merge: true });
+      toast({
+        title: "Profile Saved",
+        description: "Your profile has been updated.",
       });
+    } catch (error) {
+      console.error("Error saving profile:", error);
+      toast({
+        title: "Save Failed",
+        description: "There was an error saving your profile.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
 
@@ -188,7 +183,9 @@ export default function ProfilePage() {
         return;
     }
     if (e.target.files) {
+        const documentsRef = ref(storage, `users/${USER_ID}/documents`);
         const filesToUpload = Array.from(e.target.files);
+        
         filesToUpload.forEach(file => {
             const fileRef = ref(documentsRef, file.name);
             const uploadTask = uploadBytesResumable(fileRef, file);
@@ -261,7 +258,7 @@ const handleDeleteFile = (fileToDelete: UploadedFile) => {
             )}
           </CardContent>
           <CardFooter>
-            <Button onClick={handleSaveChanges} disabled={isSaving}>
+            <Button onClick={handleSaveChanges} disabled={isSaving || isLoading}>
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isSaving ? "Saving..." : "Save Changes"}
             </Button>
