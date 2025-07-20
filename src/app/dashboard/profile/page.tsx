@@ -167,12 +167,11 @@ export default function ProfilePage() {
                 className="min-h-[400px] text-sm"
                 value={profileData}
                 onChange={(e) => setProfileData(e.target.value)}
-                disabled={isLoading || !isFirebaseConfigured}
               />
             )}
           </CardContent>
           <CardFooter>
-            <Button onClick={handleSaveChanges} disabled={isSaving || isLoading || !isFirebaseConfigured}>
+            <Button onClick={handleSaveChanges} disabled={isSaving}>
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isSaving ? "Saving..." : "Save Changes"}
             </Button>
