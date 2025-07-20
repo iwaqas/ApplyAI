@@ -2,6 +2,7 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getFirestore, type Firestore, enableIndexedDbPersistence } from "firebase/firestore";
 import { getAuth, type Auth } from "firebase/auth";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 // Your web app's Firebase configuration
 // This will be populated from environment variables
@@ -35,11 +36,13 @@ export const isFirebaseConfigured = checkFirebaseConfig();
 let app: FirebaseApp;
 let db: Firestore;
 let auth: Auth;
+let storage: FirebaseStorage;
 
 if (isFirebaseConfigured) {
   app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
   db = getFirestore(app);
   auth = getAuth(app);
+  storage = getStorage(app);
   
   // Enable offline persistence
   try {
@@ -64,7 +67,8 @@ if (isFirebaseConfigured) {
   app = {} as FirebaseApp;
   db = {} as Firestore;
   auth = {} as Auth;
+  storage = {} as FirebaseStorage;
 }
 
 
-export { app, db, auth };
+export { app, db, auth, storage };

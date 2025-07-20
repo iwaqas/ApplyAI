@@ -32,14 +32,34 @@ import {
 } from "@/components/ui/dialog";
 import { importLinkedInProfile } from "@/ai/flows/profile-import";
 import { useToast } from "@/hooks/use-toast";
-import { db, isFirebaseConfigured } from "@/lib/firebase";
+import { db, storage, isFirebaseConfigured } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import {
+  ref,
+  uploadBytesResumable,
+  getDownloadURL,
+  listAll,
+  deleteObject,
+  type StorageReference,
+} from "firebase/storage";
+import { Progress } from "@/components/ui/progress";
 
 // We'll use a hardcoded user ID for now. This will be replaced with real auth later.
 const USER_ID = "default-user";
 // We only create the docRef if firebase is configured.
 const profileDocRef = isFirebaseConfigured ? doc(db, "profiles", USER_ID) : null;
+const documentsRef = isFirebaseConfigured ? ref(storage, `users/${USER_ID}/documents`) : null;
 
+interface UploadedFile {
+  name: string;
+  url: string;
+  ref: StorageReference;
+}
+
+interface UploadingFile {
+  name: string;
+  progress: number;
+}
 
 export default function ProfilePage() {
   const [profileData, setProfileData] = useState("");
@@ -48,6 +68,8 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -56,21 +78,33 @@ export default function ProfilePage() {
       return;
     }
 
-    const fetchProfile = async () => {
-      if (!profileDocRef) {
+    const fetchProfileAndFiles = async () => {
+      if (!profileDocRef || !documentsRef) {
           setIsLoading(false);
           return;
       }
       try {
+        // Fetch profile
         const docSnap = await getDoc(profileDocRef);
         if (docSnap.exists()) {
           setProfileData(docSnap.data().brief || "");
         }
+        
+        // Fetch files
+        const res = await listAll(documentsRef);
+        const files = await Promise.all(
+          res.items.map(async (itemRef) => {
+            const url = await getDownloadURL(itemRef);
+            return { name: itemRef.name, url, ref: itemRef };
+          })
+        );
+        setUploadedFiles(files);
+
       } catch (error) {
-        console.error("Error fetching profile:", error);
+        console.error("Error fetching data:", error);
         toast({
           title: "Error",
-          description: "Could not load your profile from the database.",
+          description: "Could not load your profile or documents.",
           variant: "destructive",
         });
       } finally {
@@ -78,7 +112,7 @@ export default function ProfilePage() {
       }
     };
 
-    fetchProfile();
+    fetchProfileAndFiles();
   }, [toast]);
 
   const handleSaveChanges = () => {
@@ -92,32 +126,24 @@ export default function ProfilePage() {
     }
     setIsSaving(true);
     
-    // Fire-and-forget save operation
     setDoc(profileDocRef, { brief: profileData }, { merge: true })
       .then(() => {
-        // Optional: Can log success or handle it silently
-        console.log("Profile saved successfully in the background.");
+        toast({
+          title: "Profile Saved",
+          description: "Your profile has been updated.",
+        });
       })
       .catch((error) => {
         console.error("Error saving profile:", error);
         toast({
           title: "Save Failed",
-          description: "There was an error saving your profile. Check the console for details.",
+          description: "There was an error saving your profile.",
           variant: "destructive",
         });
       })
       .finally(() => {
-        // We can set saving to false here if we want the button to re-enable after the background task is done.
-        // For instant UI feedback, we set it to false outside the promise chain.
+        setIsSaving(false);
       });
-
-    // Provide instant feedback to the user
-    toast({
-      title: "Saving...",
-      description: "Your profile is being saved in the background.",
-    });
-    // Re-enable the button immediately for a responsive feel
-    setIsSaving(false);
   };
 
 
@@ -153,6 +179,58 @@ export default function ProfilePage() {
       setIsImporting(false);
     }
   };
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isFirebaseConfigured || !documentsRef) {
+        toast({ title: "Configuration Error", description: "Firebase is not configured for file uploads.", variant: "destructive" });
+        return;
+    }
+    if (e.target.files) {
+        const filesToUpload = Array.from(e.target.files);
+        filesToUpload.forEach(file => {
+            const fileRef = ref(documentsRef, file.name);
+            const uploadTask = uploadBytesResumable(fileRef, file);
+
+            uploadTask.on('state_changed',
+                (snapshot) => {
+                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    setUploadingFiles(prev => {
+                        const existing = prev.find(f => f.name === file.name);
+                        if (existing) {
+                            return prev.map(f => f.name === file.name ? { ...f, progress } : f);
+                        }
+                        return [...prev, { name: file.name, progress }];
+                    });
+                },
+                (error) => {
+                    console.error("Upload failed:", error);
+                    toast({ title: `Upload of ${file.name} failed`, variant: "destructive" });
+                    setUploadingFiles(prev => prev.filter(f => f.name !== file.name));
+                },
+                () => {
+                    getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                        const newFile: UploadedFile = { name: file.name, url: downloadURL, ref: uploadTask.snapshot.ref };
+                        setUploadedFiles(prev => [...prev, newFile]);
+                        setUploadingFiles(prev => prev.filter(f => f.name !== file.name));
+                        toast({ title: "Upload Complete", description: `${file.name} has been uploaded.` });
+                    });
+                }
+            );
+        });
+    }
+};
+
+const handleDeleteFile = (fileToDelete: UploadedFile) => {
+    if (!isFirebaseConfigured) return;
+    deleteObject(fileToDelete.ref).then(() => {
+        setUploadedFiles(prev => prev.filter(f => f.name !== fileToDelete.name));
+        toast({ title: "File Deleted", description: `${fileToDelete.name} has been deleted.` });
+    }).catch(error => {
+        console.error("Error deleting file:", error);
+        toast({ title: "Delete Failed", description: `Could not delete ${fileToDelete.name}.`, variant: "destructive" });
+    });
+};
+
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
@@ -176,12 +254,12 @@ export default function ProfilePage() {
                 className="min-h-[400px] text-sm"
                 value={profileData}
                 onChange={(e) => setProfileData(e.target.value)}
-                disabled={!isFirebaseConfigured}
+                disabled={isSaving}
               />
             )}
           </CardContent>
           <CardFooter>
-            <Button onClick={handleSaveChanges} disabled={isSaving || !isFirebaseConfigured}>
+            <Button onClick={handleSaveChanges} disabled={isSaving || isLoading}>
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isSaving ? "Saving..." : "Save Changes"}
             </Button>
@@ -250,11 +328,35 @@ export default function ProfilePage() {
               >
                 <UploadCloud className="h-6 w-6" />
                 <span>Upload Files</span>
-                <Input id="file-upload" type="file" className="sr-only" />
+                <Input id="file-upload" type="file" className="sr-only" onChange={handleFileChange} multiple disabled={!isFirebaseConfigured || isLoading} />
               </label>
             </div>
             <ul className="space-y-2 text-sm">
-              {/* Document list will be dynamically rendered here in the future */}
+             {uploadingFiles.map(file => (
+                <li key={file.name}>
+                  <div className="flex items-center justify-between">
+                      <span className="truncate">{file.name}</span>
+                      <span className="text-muted-foreground">{Math.round(file.progress)}%</span>
+                  </div>
+                  <Progress value={file.progress} className="h-1 mt-1" />
+                </li>
+             ))}
+              {uploadedFiles.map((file) => (
+                <li key={file.name} className="flex items-center justify-between rounded-md border p-2">
+                  <a href={file.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 truncate">
+                    <FileText className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{file.name}</span>
+                  </a>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDeleteFile(file)}>
+                      <Trash2 className="h-4 w-4" />
+                  </Button>
+                </li>
+              ))}
+              {isLoading && (
+                  <li className="flex justify-center items-center">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                  </li>
+              )}
             </ul>
           </CardContent>
         </Card>
