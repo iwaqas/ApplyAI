@@ -15,7 +15,7 @@ const firebaseConfig = {
 };
 
 // Function to check if all firebase config keys are present
-export const isFirebaseConfigured = () => {
+function checkFirebaseConfig() {
   if (
     !firebaseConfig.apiKey ||
     !firebaseConfig.authDomain ||
@@ -30,12 +30,14 @@ export const isFirebaseConfigured = () => {
   return true;
 };
 
+export const isFirebaseConfigured = checkFirebaseConfig();
+
 // Initialize Firebase
 let app: FirebaseApp;
 let db: Firestore;
 let auth: Auth;
 
-if (isFirebaseConfigured()) {
+if (isFirebaseConfigured) {
   app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
   db = getFirestore(app);
   auth = getAuth(app);

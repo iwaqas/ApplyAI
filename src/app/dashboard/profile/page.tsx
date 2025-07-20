@@ -38,7 +38,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 // We'll use a hardcoded user ID for now. This will be replaced with real auth later.
 const USER_ID = "default-user";
 // We only create the docRef if firebase is configured.
-const profileDocRef = isFirebaseConfigured() ? doc(db, "profiles", USER_ID) : null;
+const profileDocRef = isFirebaseConfigured ? doc(db, "profiles", USER_ID) : null;
 
 
 export default function ProfilePage() {
@@ -51,12 +51,16 @@ export default function ProfilePage() {
 
   useEffect(() => {
     // Only fetch if firebase is configured
-    if (!profileDocRef) {
+    if (!isFirebaseConfigured) {
       setIsLoading(false);
       return;
     }
 
     const fetchProfile = async () => {
+      if (!profileDocRef) {
+          setIsLoading(false);
+          return;
+      }
       try {
         const docSnap = await getDoc(profileDocRef);
         if (docSnap.exists()) {
@@ -78,7 +82,7 @@ export default function ProfilePage() {
   }, [toast]);
 
   const handleSaveChanges = async () => {
-    if (!profileDocRef) {
+    if (!isFirebaseConfigured || !profileDocRef) {
       toast({
         title: "Configuration Error",
         description: "Firebase is not configured. Please check your .env.local file.",
@@ -156,16 +160,16 @@ export default function ProfilePage() {
                </div>
             ) : (
               <Textarea
-                placeholder="Paste your resume, CV, experiences, awards, skills, etc."
+                placeholder={isFirebaseConfigured ? "Paste your resume, CV, experiences, awards, skills, etc." : "Firebase not configured. Please check console."}
                 className="min-h-[400px] text-sm"
                 value={profileData}
                 onChange={(e) => setProfileData(e.target.value)}
-                disabled={!isFirebaseConfigured()}
+                disabled={!isFirebaseConfigured}
               />
             )}
           </CardContent>
           <CardFooter>
-            <Button onClick={handleSaveChanges} disabled={isSaving || isLoading || !isFirebaseConfigured()}>
+            <Button onClick={handleSaveChanges} disabled={isSaving || isLoading || !isFirebaseConfigured}>
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isSaving ? "Saving..." : "Save Changes"}
             </Button>
