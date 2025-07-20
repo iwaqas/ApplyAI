@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -33,6 +34,10 @@ import { Loader2, Wand2 } from "lucide-react";
 import { draftCvCoverLetter } from "@/ai/flows/draft-cv-cover-letter";
 import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
+const USER_ID = "default-user";
 
 const applications = [
   {
@@ -101,15 +106,35 @@ export default function ApplicationsPage() {
     setGeneratedCv("");
     setGeneratedCoverLetter("");
     try {
-      // Mock data, replace with actual user data from your state management/API
-      const mockProfileData = "Experienced software engineer with 10 years in web development...";
-      const mockJobPreferences = "Senior level, frontend developer roles.";
+      // Fetch user profile and preferences from Firestore
+      const profileDocRef = doc(db, "profiles", USER_ID);
+      const preferencesDocRef = doc(db, "preferences", USER_ID);
+
+      const [profileSnap, preferencesSnap] = await Promise.all([
+        getDoc(profileDocRef),
+        getDoc(preferencesDocRef),
+      ]);
+
+      const profileData = profileSnap.exists() ? profileSnap.data().brief : "";
+      const preferencesData = preferencesSnap.exists() ? preferencesSnap.data() : null;
+
+      if (!profileData || !preferencesData) {
+        toast({
+          title: "Profile or Preferences Missing",
+          description: "Please make sure you have saved your profile brief and job preferences before generating an application.",
+          variant: "destructive",
+        });
+        setIsGenerating(false);
+        return;
+      }
       
+      const jobPreferencesString = `Career Level: ${preferencesData.careerLevel}, Years of Experience: ${preferencesData.experience}, Preferred Job Titles: ${preferencesData.jobTitles.map((t: any) => t.value).join(', ')}`;
+
       const result = await draftCvCoverLetter({
         jobDescription,
         includeCoverLetter,
-        profileData: mockProfileData,
-        jobPreferences: mockJobPreferences,
+        profileData: profileData,
+        jobPreferences: jobPreferencesString,
       });
 
       setGeneratedCv(result.cv);
@@ -122,9 +147,10 @@ export default function ApplicationsPage() {
       });
     } catch (error) {
       console.error(error);
+      const errorMessage = error instanceof Error ? error.message : "There was an error generating the documents. Please try again.";
       toast({
         title: "Generation Failed",
-        description: "There was an error generating the documents. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
