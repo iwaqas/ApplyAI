@@ -33,7 +33,7 @@ import {
 import { importLinkedInProfile } from "@/ai/flows/profile-import";
 import { useToast } from "@/hooks/use-toast";
 import { db, storage, isFirebaseConfigured } from "@/lib/firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, type DocumentReference } from "firebase/firestore";
 import {
   ref,
   uploadBytesResumable,
@@ -44,11 +44,7 @@ import {
 } from "firebase/storage";
 import { Progress } from "@/components/ui/progress";
 
-// We'll use a hardcoded user ID for now. This will be replaced with real auth later.
 const USER_ID = "default-user";
-// We only create the docRef if firebase is configured.
-const profileDocRef = isFirebaseConfigured ? doc(db, "profiles", USER_ID) : null;
-const documentsRef = isFirebaseConfigured ? ref(storage, `users/${USER_ID}/documents`) : null;
 
 interface UploadedFile {
   name: string;
@@ -78,11 +74,10 @@ export default function ProfilePage() {
       return;
     }
 
+    const profileDocRef = doc(db, "profiles", USER_ID);
+    const documentsRef = ref(storage, `users/${USER_ID}/documents`);
+
     const fetchProfileAndFiles = async () => {
-      if (!profileDocRef || !documentsRef) {
-          setIsLoading(false);
-          return;
-      }
       try {
         // Fetch profile
         const docSnap = await getDoc(profileDocRef);
@@ -113,10 +108,11 @@ export default function ProfilePage() {
     };
 
     fetchProfileAndFiles();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSaveChanges = () => {
-    if (!isFirebaseConfigured || !profileDocRef) {
+    if (!isFirebaseConfigured) {
       toast({
         title: "Configuration Error",
         description: "Firebase is not configured. Please set it up to save data.",
@@ -126,6 +122,7 @@ export default function ProfilePage() {
     }
     setIsSaving(true);
     
+    const profileDocRef = doc(db, "profiles", USER_ID);
     setDoc(profileDocRef, { brief: profileData }, { merge: true })
       .then(() => {
         toast({
@@ -181,11 +178,12 @@ export default function ProfilePage() {
   };
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!isFirebaseConfigured || !documentsRef) {
+    if (!isFirebaseConfigured) {
         toast({ title: "Configuration Error", description: "Firebase is not configured for file uploads.", variant: "destructive" });
         return;
     }
     if (e.target.files) {
+        const documentsRef = ref(storage, `users/${USER_ID}/documents`);
         const filesToUpload = Array.from(e.target.files);
         filesToUpload.forEach(file => {
             const fileRef = ref(documentsRef, file.name);
@@ -259,7 +257,7 @@ const handleDeleteFile = (fileToDelete: UploadedFile) => {
             )}
           </CardContent>
           <CardFooter>
-            <Button onClick={handleSaveChanges} disabled={isSaving || isLoading}>
+            <Button onClick={handleSaveChanges} disabled={isSaving}>
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isSaving ? "Saving..." : "Save Changes"}
             </Button>
@@ -328,7 +326,7 @@ const handleDeleteFile = (fileToDelete: UploadedFile) => {
               >
                 <UploadCloud className="h-6 w-6" />
                 <span>Upload Files</span>
-                <Input id="file-upload" type="file" className="sr-only" onChange={handleFileChange} multiple disabled={!isFirebaseConfigured || isLoading} />
+                <Input id="file-upload" type="file" className="sr-only" onChange={handleFileChange} multiple disabled={!isFirebaseConfigured} />
               </label>
             </div>
             <ul className="space-y-2 text-sm">
