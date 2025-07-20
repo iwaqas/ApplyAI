@@ -25,6 +25,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -363,5 +364,3 @@ const handleDeleteFile = (fileToDelete: UploadedFile) => {
     </div>
   );
 }
-
-    
