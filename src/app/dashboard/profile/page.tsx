@@ -47,6 +47,7 @@ export default function ProfilePage() {
   const [isImporting, setIsImporting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -130,6 +131,7 @@ export default function ProfilePage() {
         title: "Success!",
         description: "Your LinkedIn profile has been imported. Don't forget to save!",
       });
+      setIsImportDialogOpen(false); // Close the dialog on success
     } catch (error) {
       console.error(error);
       toast({
@@ -190,7 +192,7 @@ export default function ProfilePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Dialog>
+            <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full">
                   Import from LinkedIn
