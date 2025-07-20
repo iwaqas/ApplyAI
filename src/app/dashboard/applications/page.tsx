@@ -29,13 +29,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Download, Loader2, Wand2 } from "lucide-react";
+import { Download, Link, Loader2, Wand2 } from "lucide-react";
 import { draftCvCoverLetter } from "@/ai/flows/draft-cv-cover-letter";
 import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { scrapeUrl } from "@/ai/flows/scrape-url";
+import { Separator } from "@/components/ui/separator";
 
 const USER_ID = "default-user";
 
@@ -87,17 +90,52 @@ const getStatusVariant = (status: string) => {
 
 export default function ApplicationsPage() {
   const [jobDescription, setJobDescription] = useState("");
+  const [jobUrl, setJobUrl] = useState("");
+  const [isScraping, setIsScraping] = useState(false);
   const [includeCoverLetter, setIncludeCoverLetter] = useState(true);
   const [generatedCv, setGeneratedCv] = useState("");
   const [generatedCoverLetter, setGeneratedCoverLetter] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
 
+  const handleImportFromUrl = async () => {
+    if (!jobUrl.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a URL.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsScraping(true);
+    try {
+      const scrapedContent = await scrapeUrl({ url: jobUrl });
+      if (!scrapedContent || scrapedContent.length < 50) {
+        throw new Error("Could not extract sufficient content from the URL. Try pasting the description manually.");
+      }
+      setJobDescription(scrapedContent);
+      toast({
+        title: "Success!",
+        description: "Job description has been imported.",
+      });
+    } catch (error) {
+       console.error(error);
+       const errorMessage = error instanceof Error ? error.message : "There was an error scraping the URL.";
+       toast({
+        title: "Import Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+        setIsScraping(false);
+    }
+  };
+
   const handleGenerate = async () => {
     if (!jobDescription.trim()) {
       toast({
         title: "Error",
-        description: "Please paste a job description.",
+        description: "Please paste or import a job description.",
         variant: "destructive",
       });
       return;
@@ -106,7 +144,6 @@ export default function ApplicationsPage() {
     setGeneratedCv("");
     setGeneratedCoverLetter("");
     try {
-      // Fetch user profile and preferences from Firestore
       const profileDocRef = doc(db, "profiles", USER_ID);
       const preferencesDocRef = doc(db, "preferences", USER_ID);
 
@@ -191,20 +228,45 @@ export default function ApplicationsPage() {
               <DialogHeader>
                 <DialogTitle>Draft New Application with AI</DialogTitle>
                 <DialogDescription>
-                  Paste a job description below, and we'll craft a tailored CV
+                  Paste a job description below, or import from a URL, and we'll craft a tailored CV
                   and cover letter for you.
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-6 py-4 lg:grid-cols-2">
                 <div className="space-y-4">
-                  <Label htmlFor="job-description">Job Description</Label>
-                  <Textarea
-                    id="job-description"
-                    placeholder="Paste the full job description here."
-                    className="h-96"
-                    value={jobDescription}
-                    onChange={(e) => setJobDescription(e.target.value)}
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="job-url">Import from URL</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="job-url"
+                        placeholder="https://example.com/job-posting"
+                        value={jobUrl}
+                        onChange={(e) => setJobUrl(e.target.value)}
+                        disabled={isScraping}
+                      />
+                      <Button onClick={handleImportFromUrl} disabled={isScraping}>
+                        {isScraping ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Link className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <Separator />
+                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-2 text-xs text-muted-foreground">OR</span>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="job-description">Paste Job Description</Label>
+                    <Textarea
+                      id="job-description"
+                      placeholder="Paste the full job description here."
+                      className="h-80"
+                      value={jobDescription}
+                      onChange={(e) => setJobDescription(e.target.value)}
+                    />
+                  </div>
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id="include-cover-letter"
