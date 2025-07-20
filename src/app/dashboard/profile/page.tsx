@@ -25,7 +25,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -40,6 +39,7 @@ import {
   getDownloadURL,
   listAll,
   deleteObject,
+  StorageError,
 } from "firebase/storage";
 import { Progress } from "@/components/ui/progress";
 
@@ -116,9 +116,8 @@ export default function ProfilePage() {
     }
     setIsSaving(true);
     
-    const profileDocRef = doc(db, "profiles", USER_ID);
-    
     try {
+      const profileDocRef = doc(db, "profiles", USER_ID);
       await setDoc(profileDocRef, { brief: profileData }, { merge: true });
       toast({
         title: "Profile Saved",
@@ -156,7 +155,7 @@ export default function ProfilePage() {
         title: "Success!",
         description: "Your LinkedIn profile has been imported. Don't forget to save!",
       });
-      setIsImportDialogOpen(false); // Close the dialog on success
+      setIsImportDialogOpen(false);
     } catch (error) {
       console.error(error);
       const errorMessage = error instanceof Error ? error.message : "There was an error importing your profile. Please try again.";
@@ -172,14 +171,14 @@ export default function ProfilePage() {
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!isFirebaseConfigured) {
-        toast({ title: "Configuration Error", description: "Firebase is not configured for file uploads.", variant: "destructive" });
+        toast({ title: "Configuration Error", description: "Firebase is not configured for file uploads. Please check your environment variables.", variant: "destructive" });
         return;
     }
     if (e.target.files) {
-        const documentsRef = ref(storage, `users/${USER_ID}/documents`);
         const filesToUpload = Array.from(e.target.files);
         
         filesToUpload.forEach(file => {
+            const documentsRef = ref(storage, `users/${USER_ID}/documents`);
             const fileRef = ref(documentsRef, file.name);
             const uploadTask = uploadBytesResumable(fileRef, file);
 
@@ -194,9 +193,13 @@ export default function ProfilePage() {
                         return [...prev, { name: file.name, progress }];
                     });
                 },
-                (error) => {
+                (error: StorageError) => {
                     console.error("Upload failed:", error);
-                    toast({ title: `Upload of ${file.name} failed`, variant: "destructive" });
+                    toast({
+                      title: `Upload of ${file.name} failed`,
+                      description: `Error: ${error.message}. Please check storage rules in your Firebase console.`,
+                      variant: "destructive"
+                    });
                     setUploadingFiles(prev => prev.filter(f => f.name !== file.name));
                 },
                 () => {
@@ -213,7 +216,10 @@ export default function ProfilePage() {
 };
 
 const handleDeleteFile = (fileToDelete: UploadedFile) => {
-    if (!isFirebaseConfigured) return;
+    if (!isFirebaseConfigured) {
+        toast({ title: "Configuration Error", description: "Firebase is not configured for file deletion.", variant: "destructive" });
+        return;
+    }
     const fileRef = ref(storage, `users/${USER_ID}/documents/${fileToDelete.name}`);
     deleteObject(fileRef).then(() => {
         setUploadedFiles(prev => prev.filter(f => f.name !== fileToDelete.name));
@@ -340,7 +346,7 @@ const handleDeleteFile = (fileToDelete: UploadedFile) => {
                     <FileText className="h-4 w-4 shrink-0" />
                     <span className="truncate">{file.name}</span>
                   </a>
-                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDeleteFile(file)}>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDeleteFile(file)} disabled={!isFirebaseConfigured}>
                       <Trash2 className="h-4 w-4" />
                   </Button>
                 </li>
@@ -357,3 +363,5 @@ const handleDeleteFile = (fileToDelete: UploadedFile) => {
     </div>
   );
 }
+
+    
