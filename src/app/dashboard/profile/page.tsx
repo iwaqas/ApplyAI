@@ -81,7 +81,7 @@ export default function ProfilePage() {
     fetchProfile();
   }, [toast]);
 
-  const handleSaveChanges = async () => {
+  const handleSaveChanges = () => {
     if (!isFirebaseConfigured || !profileDocRef) {
       toast({
         title: "Configuration Error",
@@ -91,22 +91,32 @@ export default function ProfilePage() {
       return;
     }
     setIsSaving(true);
-    try {
-      await setDoc(profileDocRef, { brief: profileData }, { merge: true });
-      toast({
-        title: "Success!",
-        description: "Your profile has been saved.",
+    
+    // Fire-and-forget save operation
+    setDoc(profileDocRef, { brief: profileData }, { merge: true })
+      .then(() => {
+        // Optional: Can log success or handle it silently
+        console.log("Profile saved successfully in the background.");
+      })
+      .catch((error) => {
+        console.error("Error saving profile:", error);
+        toast({
+          title: "Save Failed",
+          description: "There was an error saving your profile. Check the console for details.",
+          variant: "destructive",
+        });
+      })
+      .finally(() => {
+        // We can set saving to false here if we want the button to re-enable after the background task is done.
+        // For instant UI feedback, we set it to false outside the promise chain.
       });
-    } catch (error) {
-      console.error("Error saving profile:", error);
-      toast({
-        title: "Save Failed",
-        description: "There was an error saving your profile. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
+
+    // Provide instant feedback to the user
+    toast({
+      title: "Saving...",
+      description: "Your profile is being saved in the background.",
+    });
+    setIsSaving(false);
   };
 
 
@@ -170,7 +180,7 @@ export default function ProfilePage() {
             )}
           </CardContent>
           <CardFooter>
-            <Button onClick={handleSaveChanges} disabled={!isFirebaseConfigured || isLoading || isSaving}>
+            <Button onClick={handleSaveChanges} disabled={isSaving}>
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isSaving ? "Saving..." : "Save Changes"}
             </Button>
@@ -207,7 +217,7 @@ export default function ProfilePage() {
                 <Input
                   placeholder="https://linkedin.com/in/your-profile"
                   value={linkedinUrl}
-                  onChange={(e) => setLinkedinUrl(e.target.value)}
+                  onChange={(e) => setLinkedinUrl(e.g.target.value)}
                 />
                 <DialogFooter>
                   <Button onClick={handleImport} disabled={isImporting}>
