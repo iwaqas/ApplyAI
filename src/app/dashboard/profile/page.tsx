@@ -71,7 +71,6 @@ export default function ProfilePage() {
       setIsLoading(false);
       return;
     }
-    setIsLoading(true);
     try {
       const profileDocRef = doc(db, "profiles", USER_ID);
       const docSnap = await getDoc(profileDocRef);
