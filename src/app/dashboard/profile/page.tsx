@@ -167,7 +167,7 @@ export default function ProfilePage() {
                 className="min-h-[400px] text-sm"
                 value={profileData}
                 onChange={(e) => setProfileData(e.target.value)}
-                disabled={!isFirebaseConfigured || isLoading}
+                disabled={isLoading || !isFirebaseConfigured}
               />
             )}
           </CardContent>
