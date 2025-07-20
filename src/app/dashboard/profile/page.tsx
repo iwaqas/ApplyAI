@@ -113,7 +113,7 @@ export default function ProfilePage() {
     };
 
     fetchProfileAndFiles();
-  }, [toast]);
+  }, []);
 
   const handleSaveChanges = () => {
     if (!isFirebaseConfigured || !profileDocRef) {
