@@ -116,6 +116,7 @@ export default function ProfilePage() {
       title: "Saving...",
       description: "Your profile is being saved in the background.",
     });
+    // Re-enable the button immediately for a responsive feel
     setIsSaving(false);
   };
 
@@ -175,7 +176,6 @@ export default function ProfilePage() {
                 className="min-h-[400px] text-sm"
                 value={profileData}
                 onChange={(e) => setProfileData(e.target.value)}
-                disabled={!isFirebaseConfigured}
               />
             )}
           </CardContent>
@@ -217,7 +217,7 @@ export default function ProfilePage() {
                 <Input
                   placeholder="https://linkedin.com/in/your-profile"
                   value={linkedinUrl}
-                  onChange={(e) => setLinkedinUrl(e.g.target.value)}
+                  onChange={(e) => setLinkedinUrl(e.target.value)}
                 />
                 <DialogFooter>
                   <Button onClick={handleImport} disabled={isImporting}>
@@ -254,19 +254,19 @@ export default function ProfilePage() {
             </div>
             <ul className="space-y-2 text-sm">
               <li className="flex items-center justify-between rounded-md border p-2">
-                <div className="flex items-center gap-2">
+                <a href="/resume_final_v2.pdf" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:underline">
                   <FileText className="h-5 w-5 text-muted-foreground" />
                   <span>resume_final_v2.pdf</span>
-                </div>
+                </a>
                 <Button variant="ghost" size="icon" className="h-7 w-7">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </li>
               <li className="flex items-center justify-between rounded-md border p-2">
-                <div className="flex items-center gap-2">
+                <a href="/cover_letter_template.docx" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:underline">
                   <FileText className="h-5 w-5 text-muted-foreground" />
                   <span>cover_letter_template.docx</span>
-                </div>
+                </a>
                 <Button variant="ghost" size="icon" className="h-7 w-7">
                   <Trash2 className="h-4 w-4" />
                 </Button>
