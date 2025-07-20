@@ -33,7 +33,7 @@ import {
 import { importLinkedInProfile } from "@/ai/flows/profile-import";
 import { useToast } from "@/hooks/use-toast";
 import { db, storage, isFirebaseConfigured } from "@/lib/firebase";
-import { doc, getDoc, setDoc, type DocumentReference } from "firebase/firestore";
+import { doc, getDoc, setDoc, type DocumentData, type DocumentReference } from "firebase/firestore";
 import {
   ref,
   uploadBytesResumable,
@@ -45,6 +45,15 @@ import {
 import { Progress } from "@/components/ui/progress";
 
 const USER_ID = "default-user";
+
+let profileDocRef: DocumentReference<DocumentData>;
+let documentsRef: StorageReference;
+
+if (isFirebaseConfigured) {
+  profileDocRef = doc(db, "profiles", USER_ID);
+  documentsRef = ref(storage, `users/${USER_ID}/documents`);
+}
+
 
 interface UploadedFile {
   name: string;
@@ -73,9 +82,6 @@ export default function ProfilePage() {
       setIsLoading(false);
       return;
     }
-
-    const profileDocRef = doc(db, "profiles", USER_ID);
-    const documentsRef = ref(storage, `users/${USER_ID}/documents`);
 
     const fetchProfileAndFiles = async () => {
       try {
@@ -122,7 +128,6 @@ export default function ProfilePage() {
     }
     setIsSaving(true);
     
-    const profileDocRef = doc(db, "profiles", USER_ID);
     setDoc(profileDocRef, { brief: profileData }, { merge: true })
       .then(() => {
         toast({
@@ -183,7 +188,6 @@ export default function ProfilePage() {
         return;
     }
     if (e.target.files) {
-        const documentsRef = ref(storage, `users/${USER_ID}/documents`);
         const filesToUpload = Array.from(e.target.files);
         filesToUpload.forEach(file => {
             const fileRef = ref(documentsRef, file.name);
