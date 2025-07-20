@@ -172,15 +172,16 @@ export default function ProfilePage() {
                </div>
             ) : (
               <Textarea
-                placeholder={isFirebaseConfigured ? "Paste your resume, CV, experiences, awards, skills, etc." : "Firebase not configured. Check .env.local and restart the server."}
+                placeholder="Paste your resume, CV, experiences, awards, skills, etc."
                 className="min-h-[400px] text-sm"
                 value={profileData}
                 onChange={(e) => setProfileData(e.target.value)}
+                disabled={!isFirebaseConfigured}
               />
             )}
           </CardContent>
           <CardFooter>
-            <Button onClick={handleSaveChanges} disabled={isSaving}>
+            <Button onClick={handleSaveChanges} disabled={isSaving || !isFirebaseConfigured}>
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isSaving ? "Saving..." : "Save Changes"}
             </Button>
@@ -253,24 +254,7 @@ export default function ProfilePage() {
               </label>
             </div>
             <ul className="space-y-2 text-sm">
-              <li className="flex items-center justify-between rounded-md border p-2">
-                <a href="/resume_final_v2.pdf" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:underline">
-                  <FileText className="h-5 w-5 text-muted-foreground" />
-                  <span>resume_final_v2.pdf</span>
-                </a>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </li>
-              <li className="flex items-center justify-between rounded-md border p-2">
-                <a href="/cover_letter_template.docx" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:underline">
-                  <FileText className="h-5 w-5 text-muted-foreground" />
-                  <span>cover_letter_template.docx</span>
-                </a>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </li>
+              {/* Document list will be dynamically rendered here in the future */}
             </ul>
           </CardContent>
         </Card>
