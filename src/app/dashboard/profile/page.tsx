@@ -40,7 +40,6 @@ import {
   getDownloadURL,
   listAll,
   deleteObject,
-  type StorageReference,
 } from "firebase/storage";
 import { Progress } from "@/components/ui/progress";
 
@@ -49,7 +48,6 @@ const USER_ID = "default-user";
 interface UploadedFile {
   name: string;
   url: string;
-  ref: StorageReference;
 }
 
 interface UploadingFile {
@@ -68,45 +66,48 @@ export default function ProfilePage() {
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
   const { toast } = useToast();
 
-  useEffect(() => {
+  const fetchProfileAndFiles = useCallback(async () => {
     if (!isFirebaseConfigured) {
       setIsLoading(false);
       return;
     }
+    
+    // Only fetch if we are in the initial loading state
+    if (!isLoading) return;
 
-    const fetchProfileAndFiles = async () => {
+    try {
       const profileDocRef = doc(db, "profiles", USER_ID);
-      const documentsRef = ref(storage, `users/${USER_ID}/documents`);
-      
-      try {
-        const docSnap = await getDoc(profileDocRef);
-        if (docSnap.exists()) {
-          setProfileData(docSnap.data().brief || "");
-        }
-        
-        const res = await listAll(documentsRef);
-        const files = await Promise.all(
-          res.items.map(async (itemRef) => {
-            const url = await getDownloadURL(itemRef);
-            return { name: itemRef.name, url, ref: itemRef };
-          })
-        );
-        setUploadedFiles(files);
-
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        toast({
-          title: "Error",
-          description: "Could not load your profile or documents.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
+      const docSnap = await getDoc(profileDocRef);
+      if (docSnap.exists()) {
+        setProfileData(docSnap.data().brief || "");
       }
-    };
+      
+      const documentsRef = ref(storage, `users/${USER_ID}/documents`);
+      const res = await listAll(documentsRef);
+      const files = await Promise.all(
+        res.items.map(async (itemRef) => {
+          const url = await getDownloadURL(itemRef);
+          return { name: itemRef.name, url };
+        })
+      );
+      setUploadedFiles(files);
 
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast({
+        title: "Error",
+        description: "Could not load your profile or documents.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isLoading, toast]);
+
+
+  useEffect(() => {
     fetchProfileAndFiles();
-  }, [toast]);
+  }, [fetchProfileAndFiles]);
 
   const handleSaveChanges = async () => {
     if (!isFirebaseConfigured) {
@@ -204,7 +205,7 @@ export default function ProfilePage() {
                 },
                 () => {
                     getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-                        const newFile: UploadedFile = { name: file.name, url: downloadURL, ref: uploadTask.snapshot.ref };
+                        const newFile: UploadedFile = { name: file.name, url: downloadURL };
                         setUploadedFiles(prev => [...prev, newFile]);
                         setUploadingFiles(prev => prev.filter(f => f.name !== file.name));
                         toast({ title: "Upload Complete", description: `${file.name} has been uploaded.` });
@@ -217,7 +218,8 @@ export default function ProfilePage() {
 
 const handleDeleteFile = (fileToDelete: UploadedFile) => {
     if (!isFirebaseConfigured) return;
-    deleteObject(fileToDelete.ref).then(() => {
+    const fileRef = ref(storage, `users/${USER_ID}/documents/${fileToDelete.name}`);
+    deleteObject(fileRef).then(() => {
         setUploadedFiles(prev => prev.filter(f => f.name !== fileToDelete.name));
         toast({ title: "File Deleted", description: `${fileToDelete.name} has been deleted.` });
     }).catch(error => {
