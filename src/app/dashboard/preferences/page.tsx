@@ -1,9 +1,12 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFieldArray, useForm } from "react-hook-form";
 import * as z from "zod";
-import { PlusCircle, Trash2 } from "lucide-react";
+import { Loader2, PlusCircle, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +28,8 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { db, isFirebaseConfigured } from "@/lib/firebase";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const preferencesFormSchema = z.object({
   experience: z.coerce.number().min(0, "Experience cannot be negative."),
@@ -41,13 +46,18 @@ const preferencesFormSchema = z.object({
 type PreferencesFormValues = z.infer<typeof preferencesFormSchema>;
 
 const defaultValues: Partial<PreferencesFormValues> = {
-  experience: 5,
+  experience: 0,
   careerLevel: "mid-level",
-  jobTitles: [{ value: "Software Engineer" }],
+  jobTitles: [{ value: "" }],
 };
+
+const USER_ID = "default-user";
 
 export default function PreferencesPage() {
   const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
   const form = useForm<PreferencesFormValues>({
     resolver: zodResolver(preferencesFormSchema),
     defaultValues,
@@ -59,12 +69,65 @@ export default function PreferencesPage() {
     control: form.control,
   });
 
-  function onSubmit(data: PreferencesFormValues) {
-    toast({
-      title: "Preferences Saved!",
-      description: "Your job preferences have been updated successfully.",
-    });
-    console.log(data);
+  useEffect(() => {
+    async function fetchPreferences() {
+      if (!isFirebaseConfigured) {
+        form.reset(defaultValues);
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const preferencesDocRef = doc(db, "preferences", USER_ID);
+        const docSnap = await getDoc(preferencesDocRef);
+        if (docSnap.exists()) {
+          form.reset(docSnap.data() as PreferencesFormValues);
+        } else {
+          form.reset(defaultValues);
+        }
+      } catch (error) {
+        console.error("Error fetching preferences:", error);
+        toast({
+          title: "Error",
+          description: "Could not load your preferences.",
+          variant: "destructive",
+        });
+        form.reset(defaultValues);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchPreferences();
+  }, [form, toast]);
+
+
+  async function onSubmit(data: PreferencesFormValues) {
+     if (!isFirebaseConfigured) {
+      toast({
+        title: "Configuration Error",
+        description: "Firebase is not configured. Please set it up to save data.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const preferencesDocRef = doc(db, "preferences", USER_ID);
+      await setDoc(preferencesDocRef, data);
+      toast({
+        title: "Preferences Saved!",
+        description: "Your job preferences have been updated successfully.",
+      });
+    } catch (error) {
+      console.error("Error saving preferences:", error);
+      toast({
+        title: "Save Failed",
+        description: "There was an error saving your preferences.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -76,6 +139,25 @@ export default function PreferencesPage() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {isLoading ? (
+           <div className="space-y-8">
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+               <div className="space-y-2">
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            </div>
+            <div className="space-y-4">
+              <Skeleton className="h-4 w-1/4" />
+              <Skeleton className="h-10 w-full" />
+               <Skeleton className="h-10 w-full" />
+            </div>
+          </div>
+        ) : (
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             <div className="grid gap-6 md:grid-cols-2">
@@ -164,9 +246,13 @@ export default function PreferencesPage() {
                <FormMessage>{form.formState.errors.jobTitles?.message}</FormMessage>
             </div>
 
-            <Button type="submit">Save Preferences</Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isSaving ? "Saving..." : "Save Preferences"}
+            </Button>
           </form>
         </Form>
+        )}
       </CardContent>
     </Card>
   );
