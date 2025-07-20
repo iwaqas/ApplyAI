@@ -24,8 +24,7 @@ function checkFirebaseConfig() {
     !firebaseConfig.messagingSenderId ||
     !firebaseConfig.appId
   ) {
-    // We will log the error inside the component that uses Firebase
-    // to avoid the Next.js error overlay.
+    // The UI will handle showing an error to the user.
     return false;
   }
   return true;

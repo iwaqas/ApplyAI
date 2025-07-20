@@ -51,7 +51,6 @@ export default function ProfilePage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Only fetch if firebase is configured
     if (!isFirebaseConfigured) {
       setIsLoading(false);
       return;
@@ -162,15 +161,16 @@ export default function ProfilePage() {
                </div>
             ) : (
               <Textarea
-                placeholder={isFirebaseConfigured ? "Paste your resume, CV, experiences, awards, skills, etc." : "Firebase not configured. Check the developer console for more info."}
+                placeholder={isFirebaseConfigured ? "Paste your resume, CV, experiences, awards, skills, etc." : "Firebase not configured. Check .env.local and restart the server."}
                 className="min-h-[400px] text-sm"
                 value={profileData}
                 onChange={(e) => setProfileData(e.target.value)}
+                disabled={!isFirebaseConfigured}
               />
             )}
           </CardContent>
           <CardFooter>
-            <Button onClick={handleSaveChanges} disabled={isSaving}>
+            <Button onClick={handleSaveChanges} disabled={!isFirebaseConfigured || isLoading || isSaving}>
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isSaving ? "Saving..." : "Save Changes"}
             </Button>
