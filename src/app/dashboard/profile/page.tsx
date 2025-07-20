@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -75,18 +75,15 @@ export default function ProfilePage() {
     }
 
     const fetchProfileAndFiles = async () => {
-      // Define refs inside the effect to prevent re-renders
       const profileDocRef = doc(db, "profiles", USER_ID);
       const documentsRef = ref(storage, `users/${USER_ID}/documents`);
       
       try {
-        // Fetch profile
         const docSnap = await getDoc(profileDocRef);
         if (docSnap.exists()) {
           setProfileData(docSnap.data().brief || "");
         }
         
-        // Fetch files
         const res = await listAll(documentsRef);
         const files = await Promise.all(
           res.items.map(async (itemRef) => {
@@ -109,8 +106,7 @@ export default function ProfilePage() {
     };
 
     fetchProfileAndFiles();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [toast]);
 
   const handleSaveChanges = async () => {
     if (!isFirebaseConfigured) {
