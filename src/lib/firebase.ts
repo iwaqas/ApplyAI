@@ -1,6 +1,6 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
-import { getFirestore, type Firestore } from "firebase/firestore";
+import { getFirestore, type Firestore, enableIndexedDbPersistence } from "firebase/firestore";
 import { getAuth, type Auth } from "firebase/auth";
 
 // Your web app's Firebase configuration
@@ -24,7 +24,6 @@ function checkFirebaseConfig() {
     !firebaseConfig.messagingSenderId ||
     !firebaseConfig.appId
   ) {
-    // The UI will handle showing an error to the user.
     return false;
   }
   return true;
@@ -41,6 +40,25 @@ if (isFirebaseConfigured) {
   app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
   db = getFirestore(app);
   auth = getAuth(app);
+  
+  // Enable offline persistence
+  try {
+    enableIndexedDbPersistence(db)
+      .catch((err) => {
+        if (err.code == 'failed-precondition') {
+          // Multiple tabs open, persistence can only be enabled
+          // in one tab at a time.
+          console.warn('Firebase persistence failed: multiple tabs open.');
+        } else if (err.code == 'unimplemented') {
+          // The current browser does not support all of the
+          // features required to enable persistence
+          console.warn('Firebase persistence not available in this browser.');
+        }
+      });
+  } catch (error) {
+    console.error("Error enabling Firebase persistence:", error);
+  }
+
 } else {
   // To avoid crashes, we create mock objects if config is not set.
   app = {} as FirebaseApp;
