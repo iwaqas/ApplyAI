@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -31,12 +32,63 @@ import {
 } from "@/components/ui/dialog";
 import { importLinkedInProfile } from "@/ai/flows/profile-import";
 import { useToast } from "@/hooks/use-toast";
+import { db } from "@/lib/firebase";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+
+// We'll use a hardcoded user ID for now. This will be replaced with real auth later.
+const USER_ID = "default-user";
+const profileDocRef = doc(db, "profiles", USER_ID);
 
 export default function ProfilePage() {
   const [profileData, setProfileData] = useState("");
   const [linkedinImport, setLinkedinImport] = useState("");
   const [isImporting, setIsImporting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const docSnap = await getDoc(profileDocRef);
+        if (docSnap.exists()) {
+          setProfileData(docSnap.data().brief || "");
+        }
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+        toast({
+          title: "Error",
+          description: "Could not load your profile from the database.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [toast]);
+
+  const handleSaveChanges = async () => {
+    setIsSaving(true);
+    try {
+      await setDoc(profileDocRef, { brief: profileData }, { merge: true });
+      toast({
+        title: "Success!",
+        description: "Your profile has been saved.",
+      });
+    } catch (error) {
+      console.error("Error saving profile:", error);
+      toast({
+        title: "Save Failed",
+        description: "There was an error saving your profile. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
 
   const handleImport = async () => {
     if (!linkedinImport.trim()) {
@@ -55,7 +107,7 @@ export default function ProfilePage() {
       setProfileData(result.rephrasedProfile);
       toast({
         title: "Success!",
-        description: "Your LinkedIn profile has been imported and rephrased.",
+        description: "Your LinkedIn profile has been imported. Don't forget to save!",
       });
     } catch (error) {
       console.error(error);
@@ -78,19 +130,28 @@ export default function ProfilePage() {
             <CardTitle>Professional Brief</CardTitle>
             <CardDescription>
               This is your master document. Add all your professional details
-              here.
+              here. Your changes are saved in the database.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Textarea
-              placeholder="Paste your resume, CV, experiences, awards, skills, etc."
-              className="min-h-[400px] text-sm"
-              value={profileData}
-              onChange={(e) => setProfileData(e.target.value)}
-            />
+            {isLoading ? (
+               <div className="flex h-[400px] items-center justify-center rounded-md border border-dashed">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+               </div>
+            ) : (
+              <Textarea
+                placeholder="Paste your resume, CV, experiences, awards, skills, etc."
+                className="min-h-[400px] text-sm"
+                value={profileData}
+                onChange={(e) => setProfileData(e.target.value)}
+              />
+            )}
           </CardContent>
           <CardFooter>
-            <Button>Save Changes</Button>
+            <Button onClick={handleSaveChanges} disabled={isSaving || isLoading}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isSaving ? "Saving..." : "Save Changes"}
+            </Button>
           </CardFooter>
         </Card>
       </div>
