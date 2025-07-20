@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Wand2 } from "lucide-react";
+import { Download, Loader2, Wand2 } from "lucide-react";
 import { draftCvCoverLetter } from "@/ai/flows/draft-cv-cover-letter";
 import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -158,6 +158,18 @@ export default function ApplicationsPage() {
     }
   };
 
+  const handleDownload = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -216,7 +228,17 @@ export default function ApplicationsPage() {
                         <div className="space-y-4 text-sm">
                           {generatedCv && (
                             <div>
-                              <h3 className="mb-2 font-semibold">CV</h3>
+                               <div className="flex items-center justify-between mb-2">
+                                <h3 className="font-semibold">CV</h3>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={() => handleDownload(generatedCv, "cv.txt")}
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </div>
                               <pre className="whitespace-pre-wrap rounded-md bg-muted p-2 font-sans">
                                 {generatedCv}
                               </pre>
@@ -224,9 +246,17 @@ export default function ApplicationsPage() {
                           )}
                           {generatedCoverLetter && (
                             <div>
-                              <h3 className="mb-2 font-semibold">
-                                Cover Letter
-                              </h3>
+                              <div className="flex items-center justify-between mb-2">
+                                <h3 className="font-semibold">Cover Letter</h3>
+                                 <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={() => handleDownload(generatedCoverLetter, "cover-letter.txt")}
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </div>
                               <pre className="whitespace-pre-wrap rounded-md bg-muted p-2 font-sans">
                                 {generatedCoverLetter}
                               </pre>
