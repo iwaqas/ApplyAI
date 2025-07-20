@@ -65,6 +65,7 @@ export default function ProfilePage() {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
+  const [documentsError, setDocumentsError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchProfileAndFiles = useCallback(async () => {
@@ -72,13 +73,27 @@ export default function ProfilePage() {
       setIsLoading(false);
       return;
     }
+    setIsLoading(true);
+    setDocumentsError(null);
+
+    // Fetch Profile from Firestore
     try {
       const profileDocRef = doc(db, "profiles", USER_ID);
       const docSnap = await getDoc(profileDocRef);
       if (docSnap.exists()) {
         setProfileData(docSnap.data().brief || "");
       }
-      
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      toast({
+        title: "Error",
+        description: "Could not load your profile data.",
+        variant: "destructive",
+      });
+    }
+
+    // Fetch Files from Storage
+    try {
       const documentsRef = ref(storage, `users/${USER_ID}/documents`);
       const res = await listAll(documentsRef);
       const files = await Promise.all(
@@ -88,17 +103,22 @@ export default function ProfilePage() {
         })
       );
       setUploadedFiles(files);
-
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error("Error fetching documents:", error);
+      if (error instanceof StorageError && error.code === 'storage/unauthorized') {
+          setDocumentsError("Permissions error. Please check your Firebase Storage security rules to allow read access.");
+      } else {
+          setDocumentsError("Could not load documents. Please try again.");
+      }
       toast({
-        title: "Error",
-        description: "Could not load your profile or documents.",
+        title: "Could not load documents",
+        description: "There was an error listing your uploaded files. Your profile data may still be available.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
+
+
+    setIsLoading(false);
   }, [toast]);
 
 
@@ -356,6 +376,11 @@ const handleDeleteFile = (fileToDelete: UploadedFile) => {
                   <li className="flex justify-center items-center">
                       <Loader2 className="h-4 w-4 animate-spin" />
                   </li>
+              )}
+               {documentsError && (
+                <li className="text-sm text-destructive text-center p-2">
+                  {documentsError}
+                </li>
               )}
             </ul>
           </CardContent>
