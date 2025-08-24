@@ -1,6 +1,7 @@
+
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
-import { getFirestore, type Firestore, enableIndexedDbPersistence } from "firebase/firestore";
+import { getFirestore, type Firestore, enableIndexedDbPersistence, initializeFirestore } from "firebase/firestore";
 import { getAuth, type Auth } from "firebase/auth";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 
@@ -41,7 +42,13 @@ let persistenceEnabled = false;
 
 if (isFirebaseConfigured) {
   app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-  db = getFirestore(app);
+  
+  // Use initializeFirestore to pass settings
+  db = initializeFirestore(app, {
+    ignoreUndefinedProperties: true,
+    synchronizeTabs: false, // This can help with timestamp issues in multi-tab scenarios
+  });
+  
   auth = getAuth(app);
   storage = getStorage(app);
   
